@@ -5,7 +5,7 @@ import { makeAutheticateUseCase } from '@/use-cases/factories/make-authenticate-
 
 export async function authenticate(
   request: FastifyRequest,
-  replay: FastifyReply,
+  reply: FastifyReply,
 ) {
   const authenticateBodySchema = z.object({
     email: z.string().email(),
@@ -15,15 +15,23 @@ export async function authenticate(
 
   try {
     const authenticateUseCase = makeAutheticateUseCase()
-    await authenticateUseCase.execute({
+    const { user } = await authenticateUseCase.execute({
       email,
       password,
     })
+    const token = await reply.jwtSign(
+      {},
+      {
+        sign: {
+          sub: user.id,
+        },
+      },
+    )
+    return reply.status(200).send({ token })
   } catch (err) {
     if (err instanceof InvalidCredentialsError) {
-      return replay.status(400).send({ message: err.message })
+      return reply.status(400).send({ message: err.message })
     }
     throw err
   }
-  return replay.status(200).send()
 }
